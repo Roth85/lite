@@ -1,0 +1,28 @@
+# Reverse-proxy the COO agent server behind a subdomain, e.g.
+# coo.yourdomain.com. Drop this in your nginx sites-available, adjust the
+# server_name and port, enable it, then run certbot for TLS.
+#
+#   sudo ln -s /etc/nginx/sites-available/coo /etc/nginx/sites-enabled/coo
+#   sudo nginx -t && sudo systemctl reload nginx
+#   sudo certbot --nginx -d coo.yourdomain.com
+
+server {
+    listen 80;
+    server_name coo.yourdomain.com;
+
+    location / {
+        proxy_pass http://127.0.0.1:8787;
+        proxy_http_version 1.1;
+
+        # Required for Server-Sent Events (the /chat streaming endpoint):
+        proxy_set_header Connection "";
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_read_timeout 3600s;
+
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}

@@ -1,0 +1,20 @@
+{
+  "name": "coo-agent-server",
+  "version": "1.0.0",
+  "description": "Always-on COO agent relay: injects full business context (entities, costing, Toast, Drive) into every Claude conversation.",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.70.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2",
+    "googleapis": "^144.0.0"
+  }
+}
