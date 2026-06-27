@@ -46,9 +46,14 @@ export const ENTITIES = {
     serviceNotes: "Sunday brunch runs a different flow (10am–3pm).",
   },
   musgrove: {
-    name: "Musgrove",
+    name: "Musgrove + Company",
     type: "Brand / workflow development",
-    surfaces: ["Workflow design", "Brand development"],
+    pos: "Square",
+    surfaces: [
+      "Workflow design",
+      "Brand development",
+      "Payment processing runs through Square (live sales + payments)",
+    ],
   },
   hostingOpenclaw: {
     name: "Hosting-Openclaw",
@@ -67,11 +72,6 @@ export const ENTITIES = {
       "After-action reports for convention work (template exists)",
       "Match the established Solutions Now report style",
     ],
-  },
-  greaterLenaweeChamber: {
-    name: "Greater Lenawee Chamber",
-    type: "Contractor role",
-    surfaces: ["Chamber communications", "Digital operations queue"],
   },
   bodyProducts: {
     name: "Body Products",
@@ -120,7 +120,12 @@ export const COSTING_RULES = {
 // Where live data comes from. The agent should reach for these rather than
 // guessing, and should say when a feed is unavailable rather than inventing.
 export const DATA_SOURCES = {
-  toast: "Live Maumee sales, covers, item/sales mix, labor, voids/comps.",
+  toast:
+    "Maumee Street POS. Live order-level sales: net sales, order count, and " +
+    "item/sales mix pulled directly from today's orders (not a canned report).",
+  square:
+    "Musgrove + Company payment processing. Live payments and daily sales " +
+    "totals pulled directly from the Square Payments API.",
   googleDrive:
     "Document backbone: order guides, recipes/portion specs, checklists, " +
     "server training docs, after-action templates. One folder per entity — " +

@@ -11,6 +11,7 @@ import { requireAuth } from "./middleware/auth.js";
 import chatRouter from "./routes/chat.js";
 import { driveEnabled } from "./routes/drive.js";
 import { toastEnabled } from "./routes/toast.js";
+import { squareEnabled } from "./routes/square.js";
 import { invalidate } from "./lib/cache.js";
 
 const app = express();
@@ -21,7 +22,11 @@ app.get("/health", (_req, res) => {
   res.json({
     ok: true,
     model: process.env.ANTHROPIC_MODEL || "claude-opus-4-8",
-    feeds: { drive: driveEnabled(), toast: toastEnabled() },
+    feeds: {
+      drive: driveEnabled(),
+      toast: toastEnabled(),
+      square: squareEnabled(),
+    },
   });
 });
 
@@ -39,6 +44,7 @@ app.use(chatRouter);
 const PORT = Number(process.env.PORT) || 8787;
 app.listen(PORT, () => {
   console.log(`COO agent server listening on :${PORT}`);
-  console.log(`  drive feed: ${driveEnabled() ? "on" : "off"}`);
-  console.log(`  toast feed: ${toastEnabled() ? "on" : "off"}`);
+  console.log(`  drive feed:  ${driveEnabled() ? "on" : "off"}`);
+  console.log(`  toast feed:  ${toastEnabled() ? "on" : "off"}`);
+  console.log(`  square feed: ${squareEnabled() ? "on" : "off"}`);
 });

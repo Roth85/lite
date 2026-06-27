@@ -1,13 +1,14 @@
 # COO Agent Server
 
 An always-on relay that turns Claude into your operational second-in-command
-across all your entities — **Maumee Street Taproom, Musgrove, Hosting-Openclaw,
-Solutions Now, Greater Lenawee Chamber, and Body Products.**
+across all your entities — **Maumee Street Taproom, Musgrove + Company,
+Hosting-Openclaw, Solutions Now, and Body Products.**
 
 Every conversation — from the dashboard, the Claude mobile app, or a curl
 command in a parking lot — starts with the agent already knowing your business:
-entities, costing rules, project status, plus live documents from Google Drive
-and live sales data from Toast. You talk; it already has the context.
+entities, costing rules, project status, plus live documents from Google Drive,
+live order figures from Toast (Maumee), and live payment figures from Square
+(Musgrove + Company). You talk; it already has the context.
 
 > This is the deployable codebase. It was rebuilt clean in this repo (the repo
 > started empty), so reconcile it against the `coo-agent-server.tar.gz` artifact
@@ -21,7 +22,8 @@ src/
   context/masterContext.js  your operating brain (entities, costing, projects)
   routes/chat.js            assembles context, calls Claude (streaming)
   routes/drive.js           reads your Drive docs into context
-  routes/toast.js           pulls live Maumee sales/labor from Toast
+  routes/toast.js           pulls live Maumee order figures from Toast
+  routes/square.js          pulls live Musgrove payment figures from Square
   middleware/auth.js        bearer-token gate (locks the server to you)
   lib/cache.js              TTL cache so feeds aren't re-pulled every turn
 deploy/nginx.conf.example   reverse-proxy config (SSE-ready) + TLS notes
@@ -56,8 +58,12 @@ Fill in `.env`:
 
 - `ACCESS_TOKEN` — the generated string. Every request sends it as a bearer.
 - `ANTHROPIC_API_KEY` — your Anthropic key. (Model defaults to `claude-opus-4-8`.)
-- **Toast** — `TOAST_CLIENT_ID`, `TOAST_CLIENT_SECRET`, `TOAST_RESTAURANT_GUID`
-  from Toast's API portal. Leave blank to run without Toast.
+- **Toast** (Maumee) — `TOAST_CLIENT_ID`, `TOAST_CLIENT_SECRET`,
+  `TOAST_RESTAURANT_GUID` from Toast's API portal. Live order figures.
+  Leave blank to run without Toast.
+- **Square** (Musgrove + Company) — `SQUARE_ACCESS_TOKEN` from the Square
+  Developer Dashboard (and optionally `SQUARE_LOCATION_ID`). Live payment
+  figures. Leave blank to run without Square.
 - **Google Drive** — see the refresh-token walkthrough below. Leave blank to
   run without Drive.
 
@@ -129,11 +135,29 @@ curl https://coo.yourdomain.com/chat/sync \
 
 Both accept either `{"message": "..."}` or a full multi-turn
 `{"messages": [{"role":"user","content":"..."}, ...]}`. Point the COO dashboard
-at `/chat` and you get full Drive + Toast context on every message, from any
-device — the same brain whether you're at your desk or on your phone.
+at `/chat` and you get full Drive + Toast + Square context on every message,
+from any device — the same brain whether you're at your desk or on your phone.
 
 **Other endpoints:** `GET /health` (unauthenticated uptime check) and
-`POST /refresh` (force-refresh the Drive/Toast cache after dropping a new doc).
+`POST /refresh` (force-refresh the feed cache after dropping a new doc).
+
+## What the agent can and can't see (be the clone)
+
+Connected today: **Toast** (live Maumee orders), **Square** (live Musgrove +
+Company payments), and **Google Drive** (any doc you drop in an entity folder).
+The more you put in Drive, the more of a clone it becomes.
+
+**It cannot read your ChatGPT account.** OpenAI provides no API to read your
+ChatGPT conversation history, so this server can't see work done there. To pull
+that context in, do one of:
+
+- **ChatGPT → Export** (Settings → Data Controls → Export). Drop the export into
+  a Drive folder the agent reads — then it has that history.
+- Paste the key threads into a Drive doc.
+
+Anything you want the clone to know that isn't in Toast/Square/Drive — vendor
+lists, comp structures, decisions, your own notes — put it in a Drive folder
+(or in `src/context/masterContext.js` if it's durable) and it's in the brain.
 
 ## Security notes
 

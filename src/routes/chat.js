@@ -8,6 +8,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { renderMasterContext } from "../context/masterContext.js";
 import { driveContextBlock, driveEnabled } from "./drive.js";
 import { toastContextBlock, toastEnabled } from "./toast.js";
+import { squareContextBlock, squareEnabled } from "./square.js";
 
 const router = express.Router();
 const client = new Anthropic(); // reads ANTHROPIC_API_KEY from env
@@ -21,12 +22,13 @@ const MODEL = process.env.ANTHROPIC_MODEL || "claude-opus-4-8";
 async function buildSystem() {
   const blocks = [{ type: "text", text: renderMasterContext() }];
 
-  const [drive, toast] = await Promise.all([
+  const [drive, toast, square] = await Promise.all([
     driveEnabled() ? driveContextBlock() : Promise.resolve(""),
     toastEnabled() ? toastContextBlock() : Promise.resolve(""),
+    squareEnabled() ? squareContextBlock() : Promise.resolve(""),
   ]);
 
-  const live = [toast, drive].filter(Boolean).join("\n\n");
+  const live = [toast, square, drive].filter(Boolean).join("\n\n");
   if (live) blocks.push({ type: "text", text: live });
 
   // Cache the whole system prefix (master + live). The 20-block lookback and
