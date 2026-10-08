@@ -6,6 +6,8 @@
 // this server and the agent has total recall from any device.
 
 import "dotenv/config";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import express from "express";
 import { requireAuth } from "./middleware/auth.js";
 import chatRouter from "./routes/chat.js";
@@ -29,6 +31,13 @@ app.get("/health", (_req, res) => {
     },
   });
 });
+
+// Mobile chat page (/m) — a static shell with no data in it, so it's served
+// without auth. It asks for the token once and sends it with every API call.
+// On iPhone: open https://<host>/m in Safari → Share → Add to Home Screen.
+const publicDir = path.join(path.dirname(fileURLToPath(import.meta.url)), "public");
+app.get("/m", (_req, res) => res.sendFile(path.join(publicDir, "m.html")));
+app.use("/m", express.static(publicDir, { index: false }));
 
 // Everything below requires the bearer token.
 app.use(requireAuth);
