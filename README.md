@@ -26,6 +26,9 @@ src/
   routes/square.js          pulls live Musgrove payment figures from Square
   middleware/auth.js        bearer-token gate (locks the server to you)
   lib/cache.js              TTL cache so feeds aren't re-pulled every turn
+  lib/threads.js            server-side conversation memory for phone clients
+  public/m.html             Home Screen chat window served at /m
+ios/                        iOS Shortcuts recipes + Scriptable widget
 deploy/nginx.conf.example   reverse-proxy config (SSE-ready) + TLS notes
 .env.example                copy to .env and fill in
 ```
@@ -137,6 +140,10 @@ Both accept either `{"message": "..."}` or a full multi-turn
 `{"messages": [{"role":"user","content":"..."}, ...]}`. Point the COO dashboard
 at `/chat` and you get full Drive + Toast + Square context on every message,
 from any device — the same brain whether you're at your desk or on your phone.
+
+**From your iPhone:** `POST /quick` (short plain-text answers that remember
+the conversation), a Home Screen chat window at `/m`, and ready-made iOS
+Shortcuts + a Scriptable widget — see [`ios/README.md`](ios/README.md).
 
 **Other endpoints:** `GET /health` (unauthenticated uptime check) and
 `POST /refresh` (force-refresh the feed cache after dropping a new doc).

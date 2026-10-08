@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="COO">
+<meta name="theme-color" content="#111214">
+<link rel="manifest" href="/m/manifest.webmanifest">
+<link rel="icon" href="/m/icon.svg" type="image/svg+xml">
+<title>COO Chat</title>
+<style>
+  :root {
+    --bg: #f4f4f2; --surface: #ffffff; --text: #17181a; --muted: #6b6e73;
+    --me: #1f6feb; --me-text: #ffffff; --border: #dedfe0; --danger: #c0392b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #111214; --surface: #1c1d20; --text: #ececec; --muted: #9a9ca1;
+      --me: #2f81f7; --me-text: #ffffff; --border: #2c2e32; --danger: #ff6b5e;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font: 16px/1.45 -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+    display: flex; flex-direction: column;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left);
+  }
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 16px; border-bottom: 1px solid var(--border);
+  }
+  header h1 { font-size: 17px; margin: 0; font-weight: 600; }
+  header button {
+    background: none; border: 0; color: var(--me); font: inherit; font-size: 15px; padding: 6px 0;
+  }
+  #log { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+  .msg {
+    max-width: 85%; padding: 9px 13px; border-radius: 18px;
+    white-space: pre-wrap; overflow-wrap: anywhere;
+  }
+  .user { align-self: flex-end; background: var(--me); color: var(--me-text); border-bottom-right-radius: 6px; }
+  .assistant { align-self: flex-start; background: var(--surface); border: 1px solid var(--border); border-bottom-left-radius: 6px; }
+  .assistant.pending::after { content: "…"; color: var(--muted); }
+  .error { align-self: center; color: var(--danger); font-size: 14px; }
+  .empty { margin: auto; color: var(--muted); text-align: center; font-size: 15px; }
+  form {
+    display: flex; gap: 8px; align-items: flex-end;
+    padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--border); background: var(--bg);
+  }
+  textarea {
+    flex: 1; resize: none; max-height: 140px; min-height: 40px;
+    padding: 9px 14px; border-radius: 20px; border: 1px solid var(--border);
+    background: var(--surface); color: var(--text); font: inherit; font-size: 16px;
+  }
+  form button {
+    height: 40px; min-width: 40px; border-radius: 20px; border: 0;
+    background: var(--me); color: var(--me-text); font: inherit; font-weight: 600; padding: 0 14px;
+  }
+  form button:disabled { opacity: .45; }
+  #setup { margin: auto; width: min(360px, 100% - 32px); display: none; flex-direction: column; gap: 10px; }
+  #setup input {
+    padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border);
+    background: var(--surface); color: var(--text); font: inherit; font-size: 16px;
+  }
+  #setup p { color: var(--muted); font-size: 14px; margin: 0; }
+</style>
+</head>
+<body>
+<header>
+  <button id="newBtn" type="button">New</button>
+  <h1>COO</h1>
+  <button id="keyBtn" type="button">Key</button>
+</header>
+
+<div id="setup">
+  <h2 style="margin:0">Connect</h2>
+  <p>Paste your server's ACCESS_TOKEN. It stays on this device only.</p>
+  <input id="tokenInput" type="password" autocomplete="off" placeholder="Access token">
+  <form id="setupForm" style="border:0;padding:0"><button style="flex:1">Save</button></form>
+</div>
+
+<div id="log"></div>
+
+<form id="composer">
+  <textarea id="input" rows="1" placeholder="Message the COO" enterkeyhint="send"></textarea>
+  <button id="sendBtn" aria-label="Send">↑</button>
+</form>
+
+<script>
+  // Thread shared with the iOS Shortcuts + widget (override with ?thread=name).
+  const THREAD = new URLSearchParams(location.search).get("thread") || "phone";
+  const $ = (id) => document.getElementById(id);
+  const log = $("log"), input = $("input"), sendBtn = $("sendBtn");
+
+  const store = {
+    get() { try { return localStorage.getItem("coo_token") || ""; } catch { return ""; } },
+    set(v) { try { localStorage.setItem("coo_token", v); } catch {} },
+  };
+  let token = store.get();
+
+  function showSetup(on) {
+    $("setup").style.display = on ? "flex" : "none";
+    log.style.display = $("composer").style.display = on ? "none" : "";
+    if (on) $("tokenInput").focus();
+  }
+
+  function api(path, opts = {}) {
+    return fetch(path, {
+      ...opts,
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, ...opts.headers },
+    }).then((r) => {
+      if (r.status === 401) { showSetup(true); throw new Error("Wrong or missing access token."); }
+      return r;
+    });
+  }
+
+  function bubble(role, text = "") {
+    log.querySelector(".empty")?.remove();
+    const el = document.createElement("div");
+    el.className = `msg ${role}`;
+    el.textContent = text;
+    log.appendChild(el);
+    log.scrollTop = log.scrollHeight;
+    return el;
+  }
+
+  function emptyState() {
+    log.innerHTML = '<div class="empty">Ask anything about Maumee, Musgrove,<br>or the rest of the business.</div>';
+  }
+
+  async function loadThread() {
+    try {
+      const r = await api(`/threads/${THREAD}`);
+      const { messages } = await r.json();
+      log.innerHTML = "";
+      if (!messages.length) return emptyState();
+      for (const m of messages) bubble(m.role, typeof m.content === "string" ? m.content : "");
+    } catch (e) { bubble("error", e.message); }
+  }
+
+  async function send(text) {
+    bubble("user", text);
+    const out = bubble("assistant pending");
+    sendBtn.disabled = true;
+    try {
+      const r = await api("/chat", {
+        method: "POST",
+        body: JSON.stringify({ message: text, thread: THREAD }),
+      });
+      if (!r.ok) throw new Error((await r.json()).error || `HTTP ${r.status}`);
+
+      // Parse the Server-Sent Events stream as it arrives.
+      const reader = r.body.getReader();
+      const dec = new TextDecoder();
+      let buf = "";
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        let i;
+        while ((i = buf.indexOf("\n\n")) >= 0) {
+          const chunk = buf.slice(0, i); buf = buf.slice(i + 2);
+          const event = chunk.match(/^event: (.*)$/m)?.[1];
+          const data = JSON.parse(chunk.match(/^data: (.*)$/m)?.[1] || "{}");
+          if (event === "text") { out.textContent += data.delta; log.scrollTop = log.scrollHeight; }
+          if (event === "error") throw new Error(data.message);
+        }
+      }
+    } catch (e) {
+      bubble("error", e.message);
+    } finally {
+      out.classList.remove("pending");
+      if (!out.textContent) out.remove();
+      sendBtn.disabled = false;
+    }
+  }
+
+  $("composer").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const text = input.value.trim();
+    if (!text || sendBtn.disabled) return;
+    input.value = ""; input.style.height = "";
+    send(text);
+  });
+  input.addEventListener("input", () => {
+    input.style.height = ""; input.style.height = `${input.scrollHeight}px`;
+  });
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey && !e.isComposing && matchMedia("(hover: hover)").matches) {
+      e.preventDefault(); $("composer").requestSubmit();
+    }
+  });
+  $("setupForm").addEventListener("submit", (e) => {
+    e.preventDefault();
+    token = $("tokenInput").value.trim();
+    store.set(token);
+    showSetup(false);
+    loadThread();
+  });
+  $("keyBtn").addEventListener("click", () => showSetup(true));
+  $("newBtn").addEventListener("click", async () => {
+    if (!confirm("Start a new conversation?")) return;
+    await api(`/threads/${THREAD}`, { method: "DELETE" }).catch(() => {});
+    emptyState();
+  });
+
+  if (!token) showSetup(true); else loadThread();
+</script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+{
+  "name": "COO Chat",
+  "short_name": "COO",
+  "start_url": "/m",
+  "display": "standalone",
+  "background_color": "#111214",
+  "theme_color": "#111214",
+  "icons": [{ "src": "/m/icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+}
